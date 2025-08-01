@@ -1,0 +1,314 @@
+# ==============  CONFIG ==============
+
+project_name: "Customer Churn Prediction Pipeline"    
+target_label: "will_churn"                           # Binary label column: 1 for is churning 
+experiment_description: "Customer churn prediction using behavioral and account features" 
+
+# ============== FEATURES ==============
+# Here you can state wich features you want to use for the model.
+# You can also state wich features are categorical, numeric or boolean.
+
+features:
+  categorical:
+    - "subscription_type"        # Type of subscription plan (e.g., "basic", "premium", "enterprise")     --> Assumption: different plans have different churn rates
+    - "payment_method"           # How customer pays (e.g., "credit_card", "bank_transfer", "paypal")     --> Assumption: payment friction affects churn
+    - "customer_segment"         # Business segment (e.g., "individual", "small_business", "enterprise")  --> Assumption: different segments have different behaviors
+    - "acquisition_channel"      # How customer was acquired (e.g., "organic", "paid_ads", "referral")    --> Assumption: acquisition quality impacts retention
+  
+  numeric:
+    - "account_age_months"           # How long customer has been with the company      --> Assumption: newer customers churn more
+    - "monthly_charges"              # Customer's monthly bill amount                   --> Assumption: price sensitivity affects churn
+    - "total_charges"                # Total amount customer has paid over lifetime     --> Assumption: investment creates stickiness
+    - "support_tickets_count"        # Number of support requests in last 3 months      --> Assumption: problems lead to churn
+    - "last_login_days_ago"          # Days since customer last used the service        --> Assumption: disengagement predicts churn
+    - "usage_minutes_last_month"     # Service usage in minutes last month              --> Assumption: low usage indicates disengagement
+    - "data_usage_gb_last_month"     # Data consumption last month                      --> Assumption: usage patterns indicate engagement
+    - "contract_length_months"       # Length of current contract                       --> Assumption: longer contracts reduce churn
+    - "days_since_last_payment"      # Days since last successful payment               --> Assumption: payment issues indicate risk
+    - "discount_percentage"          # Current discount rate customer receives          --> Assumption: pricing affects retention
+  
+  boolean:
+    - "has_premium_support"          # Whether customer has premium support plan                --> Assumption: better service reduces churn
+    - "is_auto_pay_enabled"          # Whether customer has automatic payments set up           --> Assumption: convenience reduces churn
+    - "has_multiple_services"        # Whether customer uses multiple services                  --> Assumption: cross-selling increases stickiness
+    - "received_promotion_last_month" # Whether customer received promotional offer recently    --> Assumption: promotions can reduce churn
+
+# ============== DATA ==============
+# Configuration for the dataset
+data:
+  source_type: "local"                           # Data source type
+  source_path: "data/customer_churn_dataset.csv" # Path to the preprocessed dataset
+  random_state: 42                               # Fixed seed for reproducible experiments
+  test_set_size: 0.2                           # Hold out 20% for final performance evaluation
+  validation_set_size: 0.1                     # Use 10% for model selection during training
+
+
+# ============== MODELS ==============
+# Multiple models work well for churn prediction - tree models capture feature interactions, linear models are interpretable
+models:
+  enabled: ["RandomForest", "XGBoost", "LogisticRegression"]  
+  compare_models: true                                        # Compare multiple models to find best churn predictor
+
+# ============== TRAINING ==============
+training:
+  overfitting_threshold: 1.1     # If the model is overfitting, the threshold will be higher than 1.1
+
+# ==============  HYPERPARAMETER TUNING ==============
+# Aggressive tuning for churn prediction since accurate predictions directly impact business revenue
+hyperparameter_tuning:
+  enabled: true                   # Enable tuning - churn prediction benefits significantly from parameter optimization
+  method: "RandomizedSearchCV"    # Efficient search method for the large parameter space
+  n_iter: 40                      # More iterations than default due to business importance of churn prediction
+  cv_folds: 5                     # Standard cross-validation for hyperparameter selection
+  scoring: "roc_auc"             # ROC AUC is ideal for churn prediction - handles class imbalance well
+  n_jobs: -1                      # Use all CPU cores - churn prediction tuning can be computationally intensive
+
+# ==============  CROSS-VALIDATION ==============
+cross_validation:
+  enabled: true                   # Essential for reliable churn prediction performance estimates
+  cv_folds: 5                    # Standard 5-fold CV
+  scoring:                       # Comprehensive metrics for churn prediction evaluation
+    - "accuracy"                 # Overall correctness
+    - "precision_weighted"       # Important for churn prediction - minimizes false positives (incorrectly flagging loyal customers)
+    - "recall_weighted"          # Critical for business - ensures we catch most potential churners
+    - "f1_weighted"              # Balanced metric combining precision and recall
+    - "roc_auc"                  # Best single metric for churn prediction evaluation
+
+# ==============  FEATURE ENGINEERING ==============
+# Feature selection is valuable for churn prediction to focus on most predictive customer behaviors
+feature_engineering:
+  feature_selection:
+    enabled: true                # Enable to identify the most important churn indicators
+    method: "SelectKBest"        # Statistical feature selection method
+    k: 12                        # Keep top 12 features - balances performance with business interpretability
+
+# ==============  CLASS IMBALANCE ==============
+# Churn datasets are typically imbalanced (more customers stay than churn in most businesses)
+class_imbalance:
+  enabled: true                  # Handle imbalance - crucial for effective churn prediction
+  method: "SMOTE"               # SMOTE creates synthetic examples of churning customers
+  sampling_strategy: "auto"     # Automatically balance to equal class sizes
+
+# ==============  PREPROCESSING ==============
+preprocessing:
+  numeric_scaling:
+    enabled: true                # Essential for churn prediction - features have very different scales (days vs dollars vs months)
+    method: "StandardScaler"     # Standardization works well for customer behavioral features
+  handle_missing:
+    enabled: true                # Handle missing values that may occur in real customer data
+    strategy: "median"           # Median imputation robust for customer behavioral features (less sensitive to outliers)
+    fill_value: null
+
+# ==============  INTERPRETABILITY ==============
+# Understanding model decisions is crucial for business teams to act on churn predictions
+interpretability:
+  enabled: true                  # Enable all interpretability features for churn prediction
+  feature_importance: true       # Critical to understand which customer behaviors most indicate churn risk
+  shap_analysis: true           # SHAP analysis helps explain individual  predictions
+  shap_sample_size: 150          # Larger sample size for SHAP analysis due to business importance
+
+# ==============  PERFORMANCE REQUIREMENTS ==============
+# Higher performance standards for business-critical churn prediction
+performance_thresholds:
+  min_test_score: 0.75           # Require 75% AUC minimum for production churn prediction model
+
+# ==============  EXPERIMENT TRACKING ==============
+experiment_tracking:
+  enabled: true                  # Track churn prediction experiments for model comparison
+  platform: "wandb"             # W&B integration for experiment management
+  project: "Customer-Churn-Experiments"  # Dedicated project for churn prediction experiments
+  entity: null                   # Use default W&B account
+  tags: ["customer-churn", "business-analytics", "retention"]  # Tags specific to churn prediction domain
+  run_name: null                 # Auto-generate run names with timestamps
+
+# ==============  MODEL PERSISTENCE ==============
+model_persistence:
+  enabled: true                  # Save churn prediction models for deployment
+  local_dir: "./models/"         # Directory for saved churn prediction models
+
+# ==============  LOGGING ==============
+logging:
+  level: "INFO"                  # Standard logging level for churn prediction training
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"  # Standard format
+
+# ============== MACHINE LEARNING MODEL DEFINITIONS ==============
+# This section defines all available ML models and their hyperparameter grids for tuning
+# Each model specifies the Python class to import, initialization parameters, and search space
+
+model_definitions:
+  # ============== RANDOM FOREST ==============
+  # Ensemble of decision trees - robust, interpretable, handles mixed data types well
+  RandomForest:
+    class_name: "RandomForestClassifier"     # Scikit-learn class name
+    module: "sklearn.ensemble"               # Python module containing the class
+    init_params:                             # Default parameters when creating the model instance
+      class_weight: "balanced"               # Automatically adjust for class imbalance (good default for most datasets)
+    param_grid:                              # Hyperparameter search space for tuning
+      classifier__n_estimators: [50, 100, 200]           # Number of trees - more trees = better performance but slower
+      classifier__max_depth: [10, 20, null]              # Maximum tree depth - null means unlimited (can overfit)
+      classifier__min_samples_split: [2, 5, 10]          # Minimum samples needed to split a node - higher prevents overfitting
+      classifier__min_samples_leaf: [1, 2, 4]            # Minimum samples in leaf nodes - higher prevents overfitting
+
+  # ============== GRADIENT BOOSTING ==============
+  # Sequentially built ensemble where each tree corrects errors from previous ones
+  GradientBoosting:
+    class_name: "GradientBoostingClassifier" # Scikit-learn implementation of gradient boosting
+    module: "sklearn.ensemble"
+    init_params: {}                          # Use scikit-learn defaults
+    param_grid:
+      classifier__n_estimators: [50, 100, 200]           # Number of boosting stages - more can improve performance but risk overfitting
+      classifier__learning_rate: [0.05, 0.1, 0.2]       # Step size for each tree's contribution - lower = more conservative
+      classifier__max_depth: [3, 5, 7]                   # Depth of individual trees - usually kept small for boosting (3-7)
+      classifier__subsample: [0.8, 1.0]                  # Fraction of samples for each tree - <1.0 adds randomness and prevents overfitting
+
+  # ============== LOGISTIC REGRESSION ==============
+  # Linear classifier - fast, interpretable, good baseline for binary classification
+  LogisticRegression:
+    class_name: "LogisticRegression"         # Standard linear classifier
+    module: "sklearn.linear_model"
+    init_params:
+      class_weight: "balanced"               # Handle class imbalance automatically
+      max_iter: 1000                        # Increase iterations for convergence with scaled features
+    param_grid:
+      classifier__C: [0.1, 1.0, 10.0]                    # Regularization strength - smaller C = stronger regularization
+      classifier__penalty: ["l1", "l2"]                  # Regularization type - L1 does feature selection, L2 shrinks coefficients
+      classifier__solver: ["liblinear"]                  # Optimization algorithm - liblinear works well for small datasets
+
+  # ============== SUPPORT VECTOR MACHINE ==============
+  # Finds optimal decision boundary with maximum margin - powerful for complex patterns
+  SVM:
+    class_name: "SVC"                        # Support Vector Classifier
+    module: "sklearn.svm"
+    init_params:
+      class_weight: "balanced"               # Handle imbalanced datasets
+      probability: true                      # Enable probability estimates (needed for ROC AUC)
+    param_grid:
+      classifier__C: [0.1, 1.0, 10.0]                    # Regularization - smaller C = simpler model
+      classifier__kernel: ["rbf", "linear"]              # Kernel function - RBF for non-linear, linear for simpler patterns
+      classifier__gamma: ["scale", "auto"]               # RBF kernel parameter - controls influence of single training examples
+
+  # ============== XGBOOST ==============
+  # Optimized gradient boosting - often wins ML competitions, handles missing values
+  XGBoost:
+    class_name: "XGBClassifier"              # XGBoost implementation (requires: pip install xgboost)
+    module: "xgboost"
+    init_params:
+      use_label_encoder: false               # Disable deprecated label encoder
+      eval_metric: "logloss"                 # Use log loss for binary classification
+    param_grid:
+      classifier__n_estimators: [50, 100, 200]           # Number of gradient boosting rounds
+      classifier__max_depth: [3, 5, 7]                   # Maximum tree depth - deeper trees can capture more complex patterns
+      classifier__learning_rate: [0.05, 0.1, 0.3]       # Boosting learning rate - lower = more conservative, needs more estimators
+      classifier__subsample: [0.8, 1.0]                  # Row sampling rate - prevents overfitting
+      classifier__colsample_bytree: [0.8, 1.0]           # Column sampling rate - adds randomness and prevents overfitting
+
+  # ============== LIGHTGBM ==============
+  # Microsoft's gradient boosting - fast training, memory efficient, handles categorical features
+  LightGBM:
+    class_name: "LGBMClassifier"             # LightGBM implementation (requires: pip install lightgbm)
+    module: "lightgbm"
+    init_params:
+      verbose: -1                            # Suppress training output for cleaner logs
+    param_grid:
+      classifier__n_estimators: [50, 100, 200]           # Number of boosting iterations
+      classifier__max_depth: [-1, 10, 20]                # Maximum tree depth - -1 means no limit
+      classifier__learning_rate: [0.05, 0.1, 0.3]       # Boosting learning rate
+      classifier__num_leaves: [31, 50, 100]              # Maximum number of leaves per tree - key parameter for LightGBM
+      classifier__subsample: [0.8, 1.0]                  # Data sampling rate for each iteration
+
+# ============== PREPROCESSING COMPONENTS ==============
+# Definitions for data preprocessing transformers used in the pipeline
+
+preprocessing_options:
+  # ============== FEATURE SCALING ==============
+  # Standardize numeric features to have similar scales
+  scalers:
+    StandardScaler:
+      class_name: "StandardScaler"           # Zero mean, unit variance scaling (most common)
+      module: "sklearn.preprocessing"
+      init_params: {}
+    
+    MinMaxScaler:
+      class_name: "MinMaxScaler"             # Scale features to [0,1] range (preserves zero values)
+      module: "sklearn.preprocessing"
+      init_params: {}
+    
+    RobustScaler:
+      class_name: "RobustScaler"             # Uses median and IQR - robust to outliers
+      module: "sklearn.preprocessing"
+      init_params: {}
+
+  # ============== MISSING VALUE HANDLING ==============
+  # Fill in missing values in the dataset
+  imputers:
+    SimpleImputer:
+      class_name: "SimpleImputer"            # Basic imputation strategies
+      module: "sklearn.impute"
+      strategies: ["mean", "median", "most_frequent", "constant"]  # Available imputation methods
+
+  # ============== CATEGORICAL ENCODING ==============
+  # Convert categorical text/string features to numeric format
+  encoders:
+    OneHotEncoder:
+      class_name: "OneHotEncoder"            # Create binary dummy variables for each category
+      module: "sklearn.preprocessing"
+      init_params:
+        handle_unknown: "ignore"             # Ignore unseen categories during prediction (don't crash)
+        sparse_output: false                 # Return dense arrays instead of sparse (easier to work with)
+
+# ============== CLASS IMBALANCE HANDLING ==============
+# Techniques to deal with datasets where one class is much more common than others
+
+sampling_methods:
+  # ============== OVERSAMPLING METHODS ==============
+  # Generate more examples of the minority class
+  
+  SMOTE:
+    class_name: "SMOTE"                      # Synthetic Minority Oversampling Technique - creates synthetic examples
+    module: "imblearn.over_sampling"         # Requires: pip install imbalanced-learn
+    init_params: {}                          # Uses default SMOTE parameters
+  
+  RandomOverSampler:
+    class_name: "RandomOverSampler"          # Simply duplicate existing minority class examples
+    module: "imblearn.over_sampling"
+    init_params: {}
+  
+  ADASYN:
+    class_name: "ADASYN"                     # Adaptive Synthetic sampling - focuses on harder examples
+    module: "imblearn.over_sampling"
+    init_params: {}
+
+  # ============== UNDERSAMPLING METHODS ==============
+  # Remove examples from the majority class
+  
+  RandomUnderSampler:
+    class_name: "RandomUnderSampler"         # Randomly remove majority class examples
+    module: "imblearn.under_sampling"
+    init_params: {}
+  
+  TomekLinks:
+    class_name: "TomekLinks"                 # Remove examples that are nearest neighbors of different classes
+    module: "imblearn.under_sampling"
+    init_params: {}
+
+  # ============== COMBINATION METHODS ==============
+  # Apply both oversampling and undersampling
+  
+  SMOTETomek:
+    class_name: "SMOTETomek"                 # SMOTE oversampling followed by Tomek link removal
+    module: "imblearn.combine"               # Good balance of adding synthetic examples and cleaning boundaries
+    init_params: {}
+  
+  SMOTEENN:
+    class_name: "SMOTEENN"                   # SMOTE followed by Edited Nearest Neighbours cleaning
+    module: "imblearn.combine"
+    init_params: {}
+
+# ============== FEATURE SELECTION ==============
+# Automatically select the most important features for the model
+
+feature_selection:
+  SelectKBest:
+    class_name: "SelectKBest"                # Select K highest scoring features using statistical tests
+    module: "sklearn.feature_selection"     # Uses f_classif (ANOVA F-test) for classification
+    init_params: {}                          # Will be configured with scoring function and k value 

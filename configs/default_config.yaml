@@ -1,0 +1,308 @@
+# ============== PROJECT IDENTIFICATION ==============
+# These fields identify your ML project and experiment
+project_name: "Generic ML Pipeline"           # Human-readable name for your project
+target_label: "target"                        # Column name in your dataset that contains the labels (what you're predicting)
+experiment_description: "Generic binary classification pipeline"  # Brief description of what this experiment does
+
+# ============== FEATURE DEFINITIONS ==============
+# Tell the pipeline which columns in your data are what type of feature
+# This is crucial for proper preprocessing - each type gets handled differently
+features:
+  categorical: ["category_A", "category_B", "category_C"]    # Columns with text/category values (e.g., "red", "blue", "green") - will be one-hot encoded
+  numeric: ["feature_1", "feature_2", "feature_3", "feature_4", "feature_5", "feature_6", "feature_7", "feature_8", "feature_9", "feature_10"]        # Columns with numbers that should be treated as continuous values - will be scaled
+  boolean: ["flag_1", "flag_2"]        # Columns with true/false or 0/1 values - will be cast to integers
+
+# ============== DATA LOADING AND SPLITTING ==============
+# Controls where your data comes from and how it gets split for training/testing
+data:
+  source_type: "local"           # Where to load data from - currently only "local" files supported
+  source_path: "data/training_data.csv"  # Path to your CSV file with the training data
+  random_state: 42               # Random seed for reproducible train/test splits
+  test_set_size: 0.2            # Fraction of data to hold out for final testing (20% = 0.2)
+  validation_set_size: 0.1      # Fraction of remaining data for validation during training (10% = 0.1)
+
+# ============== MODEL SELECTION ==============
+# Which machine learning algorithms to train and compare
+models:
+  enabled: ["RandomForest"]      # List of model types to train - see model_configs.yaml for available options
+  compare_models: false          # Whether to train multiple models and pick the best one (slower but often better results)
+
+# ============== TRAINING BEHAVIOR ==============
+# Controls for detecting when your model isn't learning properly
+training:
+  overfitting_threshold: 1.1     # If train score / test score > this value, warn about overfitting (1.1 = 10% tolerance)
+
+# ============== HYPERPARAMETER OPTIMIZATION ==============
+# Automatic tuning of model settings to improve performance
+hyperparameter_tuning:
+  enabled: false                 # Whether to search for better model parameters (slow but improves results)
+  method: "RandomizedSearchCV"   # Search strategy: "RandomizedSearchCV" (faster) or "GridSearchCV" (thorough)
+  n_iter: 30                     # Number of parameter combinations to try (more = better results but slower)
+  cv_folds: 5                    # Number of cross-validation folds for evaluating each parameter set
+  scoring: "roc_auc"            # Metric to optimize during hyperparameter search
+  n_jobs: -1                     # Number of CPU cores to use (-1 = use all available)
+
+# ============== CROSS-VALIDATION ==============
+# Technique to get more reliable performance estimates by training on multiple data splits
+cross_validation:
+  enabled: true                  # Whether to perform cross-validation (recommended - gives better performance estimates)
+  cv_folds: 5                   # Number of data splits to create (5 is standard - more takes longer)
+  scoring:                      # List of metrics to calculate during cross-validation
+    - "accuracy"                 # Overall prediction accuracy (good for balanced datasets)
+    - "precision_weighted"       # Precision weighted by class frequency (good for imbalanced data)
+    - "recall_weighted"          # Recall weighted by class frequency
+    - "f1_weighted"              # F1-score weighted by class frequency (harmonic mean of precision/recall)
+    - "roc_auc"                  # Area under ROC curve (good general metric for binary classification)
+
+# ============== FEATURE ENGINEERING ==============
+# Automatic selection of the most important features to improve model performance
+feature_engineering:
+  feature_selection:
+    enabled: false               # Whether to automatically select the most predictive features
+    method: "SelectKBest"        # Algorithm for feature selection
+    k: 15                        # Number of top features to keep (only used if enabled=true)
+
+# ============== CLASS IMBALANCE HANDLING ==============
+# Techniques to deal with datasets where one class is much more common than the other
+class_imbalance:
+  enabled: false                 # Whether to apply resampling techniques for imbalanced datasets
+  method: "SMOTE"               # Resampling algorithm - "SMOTE" creates synthetic examples of minority class
+  sampling_strategy: "auto"     # How to balance classes - "auto" makes minority class equal to majority class
+
+# ============== DATA PREPROCESSING ==============
+# Cleaning and standardization applied to raw data before model training
+preprocessing:
+  numeric_scaling:
+    enabled: true                # Whether to standardize numeric features (highly recommended)
+    method: "StandardScaler"     # Scaling method - "StandardScaler" makes features have mean=0, std=1
+  handle_missing:
+    enabled: true                # Whether to fill in missing values automatically
+    strategy: "mean"             # How to fill missing values - "mean", "median", "most_frequent", or "constant"
+    fill_value: null             # Custom value for "constant" strategy (ignored for other strategies)
+
+# ============== MODEL INTERPRETABILITY ==============
+# Tools for understanding what the model learned and how it makes decisions
+interpretability:
+  enabled: true                  # Whether to generate interpretability reports
+  feature_importance: true       # Show which features the model considers most important
+  shap_analysis: false           # Advanced feature attribution analysis (requires additional setup)
+  shap_sample_size: 100          # Number of samples to use for SHAP analysis (only if shap_analysis=true)
+
+# ============== PERFORMANCE VALIDATION ==============
+# Minimum standards your model must meet to be considered successful
+performance_thresholds:
+  min_test_score: 0.6            # Minimum test set performance required (0.6 = 60% accuracy or AUC)
+
+# ============== EXPERIMENT TRACKING ==============
+# Integration with Weights & Biases for tracking experiments and results
+experiment_tracking:
+  enabled: true                  
+  platform: "wandb"            
+  project: "ML-Pipeline-Experiments"  # W&B project name
+  entity: null                   # W&B team/organization name (null = use default/personal account)
+  tags: ["ml-pipeline", "binary-classification"]  # Tags
+  run_name: null                 # Custom run name (null = auto-generate with timestamp)
+
+# ============== MODEL PERSISTENCE ==============
+# Controls for saving trained models to disk for later use
+model_persistence:
+  enabled: true                  # Whether to save the trained model and metadata to files
+  local_dir: "./models/"         # Directory where model files will be saved
+
+# ============== LOGGING CONFIGURATION ==============
+# Controls for diagnostic output during training
+logging:
+  level: "INFO"                  # Log verbosity - "DEBUG", "INFO", "WARNING", "ERROR"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"  # Log message format
+
+
+# ========================================================================================
+#                            MACHINE LEARNING MODEL DEFINITIONS                          #
+# ========================================================================================
+
+# This section defines all available ML models and their hyperparameter grids for tuning
+# Each model specifies the Python class to import, initialization parameters, and search space
+
+
+model_definitions:
+
+  # ============== RANDOM FOREST ==============
+  # Ensemble of decision trees - robust, interpretable, handles mixed data types well
+  RandomForest:
+    class_name: "RandomForestClassifier"     # Scikit-learn class name
+    module: "sklearn.ensemble"               # Python module containing the class
+    init_params:                             # Default parameters when creating the model instance
+      class_weight: "balanced"               # Automatically adjust for class imbalance (good default for most datasets)
+    param_grid:                              # Hyperparameter search space for tuning
+      classifier__n_estimators: [50, 100, 200]           # Number of trees - more trees = better performance but slower
+      classifier__max_depth: [10, 20, null]              # Maximum tree depth - null means unlimited (can overfit)
+      classifier__min_samples_split: [2, 5, 10]          # Minimum samples needed to split a node - higher prevents overfitting
+      classifier__min_samples_leaf: [1, 2, 4]            # Minimum samples in leaf nodes - higher prevents overfitting
+
+  # ============== GRADIENT BOOSTING ==============
+  # Sequentially built ensemble where each tree corrects errors from previous ones
+  GradientBoosting:
+    class_name: "GradientBoostingClassifier" # Scikit-learn implementation of gradient boosting
+    module: "sklearn.ensemble"
+    init_params: {}                          # Use scikit-learn defaults
+    param_grid:
+      classifier__n_estimators: [50, 100, 200]           # Number of boosting stages - more can improve performance but risk overfitting
+      classifier__learning_rate: [0.05, 0.1, 0.2]       # Step size for each tree's contribution - lower = more conservative
+      classifier__max_depth: [3, 5, 7]                   # Depth of individual trees - usually kept small for boosting (3-7)
+      classifier__subsample: [0.8, 1.0]                  # Fraction of samples for each tree - <1.0 adds randomness and prevents overfitting
+
+  # ============== LOGISTIC REGRESSION ==============
+  # Linear classifier - fast, interpretable, good baseline for binary classification
+  LogisticRegression:
+    class_name: "LogisticRegression"         # Standard linear classifier
+    module: "sklearn.linear_model"
+    init_params:
+      class_weight: "balanced"               # Handle class imbalance automatically
+      max_iter: 1000                        # Increase iterations for convergence with scaled features
+    param_grid:
+      classifier__C: [0.1, 1.0, 10.0]                    # Regularization strength - smaller C = stronger regularization
+      classifier__penalty: ["l1", "l2"]                  # Regularization type - L1 does feature selection, L2 shrinks coefficients
+      classifier__solver: ["liblinear"]                  # Optimization algorithm - liblinear works well for small datasets
+
+  # ============== SUPPORT VECTOR MACHINE ==============
+  # Finds optimal decision boundary with maximum margin - powerful for complex patterns
+  SVM:
+    class_name: "SVC"                        # Support Vector Classifier
+    module: "sklearn.svm"
+    init_params:
+      class_weight: "balanced"               # Handle imbalanced datasets
+      probability: true                      # Enable probability estimates (needed for ROC AUC)
+    param_grid:
+      classifier__C: [0.1, 1.0, 10.0]                    # Regularization - smaller C = simpler model
+      classifier__kernel: ["rbf", "linear"]              # Kernel function - RBF for non-linear, linear for simpler patterns
+      classifier__gamma: ["scale", "auto"]               # RBF kernel parameter - controls influence of single training examples
+
+  # ============== XGBOOST ==============
+  # Optimized gradient boosting - often wins ML competitions, handles missing values
+  XGBoost:
+    class_name: "XGBClassifier"              # XGBoost implementation (requires: pip install xgboost)
+    module: "xgboost"
+    init_params:
+      use_label_encoder: false               # Disable deprecated label encoder
+      eval_metric: "logloss"                 # Use log loss for binary classification
+    param_grid:
+      classifier__n_estimators: [50, 100, 200]           # Number of gradient boosting rounds
+      classifier__max_depth: [3, 5, 7]                   # Maximum tree depth - deeper trees can capture more complex patterns
+      classifier__learning_rate: [0.05, 0.1, 0.3]       # Boosting learning rate - lower = more conservative, needs more estimators
+      classifier__subsample: [0.8, 1.0]                  # Row sampling rate - prevents overfitting
+      classifier__colsample_bytree: [0.8, 1.0]           # Column sampling rate - adds randomness and prevents overfitting
+
+  # ============== LIGHTGBM ==============
+  # Microsoft's gradient boosting - fast training, memory efficient, handles categorical features
+  LightGBM:
+    class_name: "LGBMClassifier"             # LightGBM implementation (requires: pip install lightgbm)
+    module: "lightgbm"
+    init_params:
+      verbose: -1                            # Suppress training output for cleaner logs
+    param_grid:
+      classifier__n_estimators: [50, 100, 200]           # Number of boosting iterations
+      classifier__max_depth: [-1, 10, 20]                # Maximum tree depth - -1 means no limit
+      classifier__learning_rate: [0.05, 0.1, 0.3]       # Boosting learning rate
+      classifier__num_leaves: [31, 50, 100]              # Maximum number of leaves per tree - key parameter for LightGBM
+      classifier__subsample: [0.8, 1.0]                  # Data sampling rate for each iteration
+
+
+
+
+# ========================================================================================
+# ============== PREPROCESSING COMPONENTS ==============
+# Definitions for data preprocessing transformers used in the pipeline
+
+preprocessing_options:
+  # ============== FEATURE SCALING ==============
+  # Standardize numeric features to have similar scales
+  scalers:
+    StandardScaler:
+      class_name: "StandardScaler"           # Zero mean, unit variance scaling (most common)
+      module: "sklearn.preprocessing"
+      init_params: {}
+    
+    MinMaxScaler:
+      class_name: "MinMaxScaler"             # Scale features to [0,1] range (preserves zero values)
+      module: "sklearn.preprocessing"
+      init_params: {}
+    
+    RobustScaler:
+      class_name: "RobustScaler"             # Uses median and IQR - robust to outliers
+      module: "sklearn.preprocessing"
+      init_params: {}
+
+  # ============== MISSING VALUE HANDLING ==============
+  # Fill in missing values in the dataset
+  imputers:
+    SimpleImputer:
+      class_name: "SimpleImputer"            # Basic imputation strategies
+      module: "sklearn.impute"
+      strategies: ["mean", "median", "most_frequent", "constant"]  # Available imputation methods
+
+  # ============== CATEGORICAL ENCODING ==============
+  # Convert categorical text/string features to numeric format
+  encoders:
+    OneHotEncoder:
+      class_name: "OneHotEncoder"            # Create binary dummy variables for each category
+      module: "sklearn.preprocessing"
+      init_params:
+        handle_unknown: "ignore"             # Ignore unseen categories during prediction (don't crash)
+        sparse_output: false                 # Return dense arrays instead of sparse (easier to work with)
+
+# ============== CLASS IMBALANCE HANDLING ==============
+# Techniques to deal with datasets where one class is much more common than others
+
+sampling_methods:
+  # ============== OVERSAMPLING METHODS ==============
+  # Generate more examples of the minority class
+  
+  SMOTE:
+    class_name: "SMOTE"                      # Synthetic Minority Oversampling Technique - creates synthetic examples
+    module: "imblearn.over_sampling"         # Requires: pip install imbalanced-learn
+    init_params: {}                          # Uses default SMOTE parameters
+  
+  RandomOverSampler:
+    class_name: "RandomOverSampler"          # Simply duplicate existing minority class examples
+    module: "imblearn.over_sampling"
+    init_params: {}
+  
+  ADASYN:
+    class_name: "ADASYN"                     # Adaptive Synthetic sampling - focuses on harder examples
+    module: "imblearn.over_sampling"
+    init_params: {}
+
+  # ============== UNDERSAMPLING METHODS ==============
+  # Remove examples from the majority class
+  
+  RandomUnderSampler:
+    class_name: "RandomUnderSampler"         # Randomly remove majority class examples
+    module: "imblearn.under_sampling"
+    init_params: {}
+  
+  TomekLinks:
+    class_name: "TomekLinks"                 # Remove examples that are nearest neighbors of different classes
+    module: "imblearn.under_sampling"
+    init_params: {}
+
+  # ============== COMBINATION METHODS ==============
+  # Apply both oversampling and undersampling
+  
+  SMOTETomek:
+    class_name: "SMOTETomek"                 # SMOTE oversampling followed by Tomek link removal
+    module: "imblearn.combine"               # Good balance of adding synthetic examples and cleaning boundaries
+    init_params: {}
+  
+  SMOTEENN:
+    class_name: "SMOTEENN"                   # SMOTE followed by Edited Nearest Neighbours cleaning
+    module: "imblearn.combine"
+    init_params: {}
+
+# ============== FEATURE SELECTION ==============
+# Automatically select the most important features for the model
+
+feature_selection:
+  SelectKBest:
+    class_name: "SelectKBest"                # Select K highest scoring features using statistical tests
+    module: "sklearn.feature_selection"     # Uses f_classif (ANOVA F-test) for classification
+    init_params: {}                          # Will be configured with scoring function and k value 
