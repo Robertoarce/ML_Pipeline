@@ -61,24 +61,17 @@ class WandBTracker:
             return False
 
         try:
-            # Login with API key from environment
-            api_key = os.getenv("WANDB_API_KEY")
-            if not api_key:
-                logger.warning("WANDB_API_KEY environment variable not set")
-                self.enabled = False
-                return False
-
-            wandb.login(key=api_key)
-
             # Generate run name if not provided
             run_name = self.tracking_config.get("run_name")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
             if run_name is None:
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
                 project_name = self.config.get(
                     "project_name", "ML-Pipeline").replace(" ", "_")
                 run_name = f"{project_name}_{timestamp}"
+            else:
+                run_name = f"{run_name}_{timestamp}"
 
-            # Initialize run
+            # Initialize run in online mode - wandb will handle authentication automatically
             self.run = wandb.init(
                 project=self.tracking_config.get(
                     "project", "ML-Pipeline-Experiments"),
@@ -86,10 +79,10 @@ class WandBTracker:
                 name=run_name,
                 config=self.config,
                 tags=self.tracking_config.get("tags", ["ml-pipeline"]),
-                reinit=True
+                mode="online"  # Force online mode - no fallback to offline
             )
 
-            logger.info(f"W&B tracking initialized: {run_name}")
+            logger.info(f"W&B tracking initialized online: {run_name}")
             return True
 
         except Exception as e:

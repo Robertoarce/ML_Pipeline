@@ -101,7 +101,7 @@ experiment_tracking:
   project: "ML-Pipeline-Experiments"  # W&B project name
   entity: null                   # W&B team/organization name (null = use default/personal account)
   tags: ["ml-pipeline", "binary-classification"]  # Tags
-  run_name: null                 # Custom run name (null = auto-generate with timestamp)
+  run_name: 'test_1'#null                 # Custom run name (null = auto-generate with timestamp)
 
 # ============== MODEL PERSISTENCE ==============
 # Controls for saving trained models to disk for later use

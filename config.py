@@ -9,17 +9,9 @@ Users can create multiple configuration files and select them by name.
 import os
 import logging
 from typing import Dict, Any, Optional
+import yaml
 
 logger = logging.getLogger(__name__)
-
-# Try to import YAML support
-try:
-    import yaml
-    YAML_AVAILABLE = True
-except ImportError:
-    yaml = None
-    YAML_AVAILABLE = False
-    logger.warning("PyYAML not available. Install with: pip install pyyaml")
 
 
 def load_config(config_name: Optional[str] = None, config_dir: str = "configs") -> Dict[str, Any]:
@@ -38,15 +30,11 @@ def load_config(config_name: Optional[str] = None, config_dir: str = "configs") 
         ImportError: If PyYAML is not available
         FileNotFoundError: If config file doesn't exist
     """
-    if not YAML_AVAILABLE:
-        raise ImportError(
-            "PyYAML is required for configuration management. Install with: pip install pyyaml")
-
     # Determine config file name
     if config_name is None:
         config_file = "default_config.yaml"
     else:
-        config_file = f"{config_name}_config.yaml"
+        config_file = f"{config_name}.yaml"
 
     config_path = os.path.join(config_dir, config_file)
 
