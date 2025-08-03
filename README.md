@@ -22,8 +22,6 @@ This system addresses that inefficiency by providing a configurable ML pipeline 
 
 **Model Persistence (Optional)**: Automatic model saving with metadata for deployment readiness.
 
-**Data Generation (Optional)**: Standalone script creates synthetic datasets that match your configuration, useful for testing and prototyping.
-
 ### Supported Algorithms
 
 - **Tree-based**: RandomForest, GradientBoosting, XGBoost, LightGBM
@@ -68,17 +66,7 @@ hyperparameter_tuning:
   n_iter: 30
 ```
 
-### 2. Data Generation (Optional)
-
-Generate synthetic data that matches your configuration:
-
-```bash
-python data_generator.py --config customer_churn --samples 5000
-```
-
-This creates a dataset with the exact features and target variable specified in your config.
-
-### 3. Training Pipeline
+### 2. Training Pipeline
 
 Run the complete training pipeline:
 
@@ -96,7 +84,7 @@ The system automatically:
 - Evaluates on test data
 - Saves the best model with metadata
 
-### 4. Results
+### 3. Results
 
 ```
 2025-01-01 12:00:00 - INFO - Training completed successfully!
@@ -110,14 +98,6 @@ The system automatically:
 ### No Configuration Validation by Design
 
 Traditional ML pipelines often include extensive configuration validation. This system deliberately omits it. Invalid configurations surface as runtime errors, which provides faster feedback than pre-flight checks and allows for more flexible usage patterns.
-
-### Standalone Data Generation
-
-Data generation runs independently from training. This separation allows for:
-
-- Testing configurations before acquiring real data
-- Rapid prototyping with synthetic datasets
-- Consistent feature engineering across experiments
 
 ### Single-File Configurations
 
@@ -186,17 +166,13 @@ feature_engineering:
 ### Development Workflow
 
 1. **Create configuration** for your use case
-2. **Generate synthetic data** to test the pipeline
-3. **Iterate on feature definitions** and model selection
-4. **Replace with real data** when ready
-5. **Deploy the trained model**
+2. **Iterate on feature definitions** and model selection
+3. **Train with your data**
+4. **Deploy the trained model**
 
 ### Production Pipeline
 
 ```bash
-# Generate data (if needed)
-python data_generator.py --config production --samples 10000
-
 # Train models
 python main.py --config production
 
@@ -212,7 +188,6 @@ The system integrates with Weights & Biases automatically. Set the `WANDB_API_KE
 ```
 06 ML_Pipeline/
 ├── main.py                      # Training pipeline entry point
-├── data_generator.py            # Standalone data generation
 ├── config.py                    # Configuration loading
 ├── src/
 │   └── pipeline_builder.py      # Model and preprocessing pipeline construction

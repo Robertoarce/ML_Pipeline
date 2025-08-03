@@ -30,6 +30,5 @@ python-dotenv>=0.19.0
 # # Development Dependencies (optional)
 # jupyter>=1.0.0
 # ipykernel>=6.0.0
-
 # # Data Validation (optional)
 # great-expectations>=0.15.0
